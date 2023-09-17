@@ -1,0 +1,14 @@
+repos:
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v2.37.3
+    hooks:
+      - id: pyupgrade
+  - repo: https://github.com/DanielNoord/pydocstringformatter
+    rev: 0.6.2
+    hooks:
+      - id: pydocstringformatter
+  - repo: https://github.com/pycqa/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        name: isort (python)

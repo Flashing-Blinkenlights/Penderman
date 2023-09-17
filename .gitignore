@@ -1,0 +1,6 @@
+__pycache__
+.vscode
+.mypy_cache
+gdpc.egg-info
+dist
+.pytest_cache

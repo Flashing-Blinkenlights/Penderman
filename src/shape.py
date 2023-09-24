@@ -1,7 +1,7 @@
 from copy import deepcopy
 from logging import error
 from typing import Sequence
-from copy import deepcopy
+
 import numpy as np
 from gdpc.block import Block
 from gdpc.model import Model
@@ -14,85 +14,139 @@ EMPTY_BLOCK = Block(id=None)
 class Palette:
     """Provides paletting functionality using a block look-up table.
 
-        This is a wrapper of list which aims to minimise the number of times
-            a value changes its index. To achieve this, the following
-            strategies are employed:
+    This is a wrapper of list which aims to minimise the number of times
+        a value changes its index. To achieve this, the following
+        strategies are employed:
 
-            1. There may be no duplicate values (other than `None`).
-            2. Empty spaces (`None`) are created where values are removed.
-            3. Every mutating operation returns a minimal update map, e.g.
-                {5: 3, 9: 4} (old index: new index)
-            4. The palette is unordered, unless specified otherwise
+        1. There may be no duplicate values (other than `None`).
+        2. Empty spaces (`None`) are created where values are removed.
+        3. Every mutating operation returns a minimal update map, e.g.
+            {5: 3, 9: 4} (old index: new index)
+        4. The palette is unordered unless specified otherwise (`keep_order`).
+        5. The palette contains gaps unless specified otherwise (`keep_small`).
+
+        It should be noted that the default settings optimise for computational
+            efficiency and usability, and these settings should only be adjusted
+            if you're *sure* this is what you want.
     """
 
     # ====
     # Generic methods
     # ====
 
-    def __init__(self, blocks: Sequence[Block] = [EMPTY_BLOCK]) -> None:
+    def __init__(
+        self,
+        blocks: Sequence[Block] = [EMPTY_BLOCK],
+        keep_order: bool = False,
+        keep_small: bool = False,
+    ) -> None:
         """Create a Palette, by default with a "nothing" Block at index 0."""
         if type(blocks) is Block:
             blocks = [blocks]
         self._blut: list[Block] = list(blocks)  # Block Look-Up Table
+        self.keep_order: bool = keep_order
+        self.keep_small: bool = keep_small
 
     def __bool__(self):
+        """Is True if it contains at least one block and that block is not empty."""
         if len(self._blut) < 1 or len(self._blut) == 1 and self._blut[0] == EMPTY_BLOCK:
             return False
         return True
 
     def __len__(self):
+        """Return the number of unique blocks in the list (excludes gaps)."""
         return len([None for v in self._blut if v is not None])
 
     # ====
     # List-centric methods
     # ====
 
-    def __getitem__(self, index:int):
+    def _map_leftshift(self, index1: int, index2: int):
+        """Returns a dict showing the index changes after a leftshift."""
+        if index2 < 0:
+            
+
+    def _map_rightshift(self, index1: int, index2: int):
+        """Returns a dict showing the index changes after a rightshift."""
+
+    def __getitem__(self, index: int) -> Block | None:
+        """Return the block (or gap) at the given index."""
         return self._blut[index]
 
-    def __setitem__(self, index:int, value:Block):
-        raise NotImplementedError
+    def __setitem__(self, index: int, value: Block) -> None:
+        """Overwrite the block at a given index (NOT RECOMMENDED).
 
-    def __delitem__(self, index:int):
-        raise NotImplementedError
+        This WILL set the prior entries of the block (if they exist) to None,
+            and may cause other indexes to be silently modified
+            if `keep_order` is True!
+        Use `palette.replace_block()` for a less radical alternative!
+        """
+        if value is not None:
+            try:
+                index = self.index(value)
+                del self[index]
+            except ValueError:  # value does not already exist
+                pass
+
+        self._blut[index] = value
+
+    def __delitem__(self, index: int) -> None:
+        """Insert a gap or delete the object at the index (NOT RECOMMENDED)."""
+        if self.keep_small:
+            # delete the entry, causing all successive entries to shift left!
+            del self._blut[index]
+        else:
+            # insert a gap, maintaining the other indexes
+            self._blut[index] = None
 
     def __iter__(self):
-        raise NotImplementedError
+        """Iterate through the palette (including its gaps)."""
+        yield from self._blut
 
-    def __add__():
-        raise NotImplementedError
+    def __add__(self, other):
+        """Concatenate two palettes, preferring the index of the original."""
+        other_type = type(other)
+        if other_type is not Palette and other_type is not Sequence:
+            raise TypeError(
+                f'can only concatenate Palette or Sequence (not "{other_type}" to Palette)'
+            )
 
-    def __radd__():
-        raise NotImplementedError
+        for i, block in enumerate(other):
+            self.append(block)
+
+    def __radd__(self, other):
+        """Override incase a compatible type is on the left."""
+        return self + other
 
     def __iadd__():
         raise NotImplementedError
 
-    def __mul__():
-        raise NotImplementedError
+    def __contains__(self, value: Block):
+        """Indicate whether a value is in the palette."""
+        return value in self._blut
 
-    def __rmul__():
-        raise NotImplementedError
+    def append(self, block: Block, force: bool = False):
+        index = None
+        try:
+            index = self._blut.index(block)
+        except ValueError:
+            pass
 
-    def __imul__():
-        raise NotImplementedError
+        if force:
+            if index is not None:
+                del self[index]
+            self._blut.append(block)
 
-    def __contains__():
-        raise NotImplementedError
+    def clear(self) -> None:
+        """Irreversibly clear the palette."""
+        self._blut.clear()
 
-    def __iter__():
-        raise NotImplementedError
+    def copy(self) -> "Palette":
+        """Return a copy of the palette."""
+        return Palette(deepcopy(self._blut), self.keep_order, self.keep_small)
 
-    def append(self, block: Block):
-        raise NotImplementedError
-
-    def clear(self):
-        raise NotImplementedError
-
-    def copy(self):
-        return Palette(deepcopy(self._blut))
-
-    def count(self, block: Block | None, force_count=False):
+    def count(self, block: Block | None, force_count=False) -> int:
+        """Count the number of ocurrences of an item in the palette."""
         if block is not None and not force_count:
             return 1
         return self._blut.count(block)
@@ -101,7 +155,7 @@ class Palette:
         for block in block:
             self.append(block)
 
-    def index(self, block: Block):
+    def index(self, block: Block) -> int:
         """Get the look-up index of a Block."""
         return self._blut.index(block)
 
@@ -111,7 +165,7 @@ class Palette:
     def pop(self, pos=-1):
         raise NotImplementedError
 
-    def remove(self, block:Block):
+    def remove(self, block: Block):
         raise NotImplementedError
 
     def reverse(self):
@@ -119,8 +173,6 @@ class Palette:
 
     def sort(self):
         raise NotImplementedError
-
-    def # method to get block from index
 
     # ====
     # Palette-centric methods
@@ -207,7 +259,7 @@ class Shape:
         raise NotImplementedError
 
     def get_block(self, position: Vec3iLike, *args, **kwargs):
-        if type(position) == int:
+        if type(position) is int:
             position = [position, args[0], args[1]]
 
         return self._palette.self._matrix[*position]

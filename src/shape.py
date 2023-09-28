@@ -63,8 +63,20 @@ class Palette:
 
     def _map_leftshift(self, index1: int, index2: int):
         """Returns a dict showing the index changes after a leftshift."""
+        # make index positive
+        if index1 < 0:
+            index1 += len(self)
         if index2 < 0:
-            
+            index2 += len(self)
+
+        shifted_map = {i: i-1 for i in range(index1, index2+1)}
+        if 0 in shifted_map:
+            if len(self)-1 in shifted_map:
+                shifted_map[0] = len(self)-1
+            else:
+                shifted_map[0] = None
+
+        return shifted_map
 
     def _map_rightshift(self, index1: int, index2: int):
         """Returns a dict showing the index changes after a rightshift."""

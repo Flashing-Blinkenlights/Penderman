@@ -1,4 +1,4 @@
-#!/home/files/code/Penderman/venv/bin/python
+#!/home/a_lambent_eye/Documents/Penderman/venv/bin/python3.11
 # -*- coding: utf-8 -*-
 import re
 import sys

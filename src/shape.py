@@ -1,11 +1,12 @@
+"""A collection of classes for representing abstract structures."""
+
 from copy import deepcopy
 from logging import error
-from typing import Sequence
+from typing import Callable, Sequence
 
 import numpy as np
 from gdpc.block import Block
-from gdpc.model import Model
-from gdpc.vector_tools import Vec3bLike, Vec3iLike, bvec3, ivec3
+from gdpc.vector_tools import Vec3bLike, Vec3iLike
 from numpy.typing import NDArray
 
 EMPTY_BLOCK = Block(id=None)
@@ -48,8 +49,12 @@ class Palette:
         self.keep_small: bool = keep_small
 
     def __bool__(self):
-        """Is True if it contains at least one block and that block is not empty."""
-        if len(self._blut) < 1 or len(self._blut) == 1 and self._blut[0] == EMPTY_BLOCK:
+        """Contains at least one block and that block is not empty."""
+        if (
+            len(self._blut) < 1
+            or len(self._blut) == 1
+            and self._blut[0] == EMPTY_BLOCK
+        ):
             return False
         return True
 
@@ -62,24 +67,24 @@ class Palette:
     # ====
 
     def _map_leftshift(self, index1: int, index2: int):
-        """Returns a dict showing the index changes after a leftshift."""
+        """Return a dict showing the index changes after a leftshift."""
         # make index positive
         if index1 < 0:
             index1 += len(self)
         if index2 < 0:
             index2 += len(self)
 
-        shifted_map = {i: i-1 for i in range(index1, index2+1)}
+        shifted_map = {i: i - 1 for i in range(index1, index2 + 1)}
         if 0 in shifted_map:
-            if len(self)-1 in shifted_map:
-                shifted_map[0] = len(self)-1
+            if len(self) - 1 in shifted_map:
+                shifted_map[0] = len(self) - 1
             else:
                 shifted_map[0] = None
 
         return shifted_map
 
     def _map_rightshift(self, index1: int, index2: int):
-        """Returns a dict showing the index changes after a rightshift."""
+        """Return a dict showing the index changes after a rightshift."""
 
     def __getitem__(self, index: int) -> Block | None:
         """Return the block (or gap) at the given index."""
@@ -120,17 +125,19 @@ class Palette:
         other_type = type(other)
         if other_type is not Palette and other_type is not Sequence:
             raise TypeError(
-                f'can only concatenate Palette or Sequence (not "{other_type}" to Palette)'
+                f"can only concatenate Palette or Sequence "
+                f'(not "{other_type}" to Palette)'
             )
 
         for i, block in enumerate(other):
             self.append(block)
 
     def __radd__(self, other):
-        """Override incase a compatible type is on the left."""
+        """Override in case of compatible type on the left."""
         return self + other
 
     def __iadd__():
+        """Implement `+=` functionality."""
         raise NotImplementedError
 
     def __contains__(self, value: Block):
@@ -138,16 +145,19 @@ class Palette:
         return value in self._blut
 
     def append(self, block: Block, force: bool = False):
+        """Append block to palette if it does not exist.
+
+        Use `force` to ensure it is appended (deletes duplicates).
+        """
         index = None
         try:
             index = self._blut.index(block)
+            if force:
+                del self[index]
         except ValueError:
             pass
 
-        if force:
-            if index is not None:
-                del self[index]
-            self._blut.append(block)
+        self._blut.append(block)
 
     def clear(self) -> None:
         """Irreversibly clear the palette."""
@@ -163,27 +173,40 @@ class Palette:
             return 1
         return self._blut.count(block)
 
-    def extend(self, blocks):
+    def extend(self, blocks: Sequence[Block], force: bool = False):
+        """Extend the palette with a sequence of blocks.
+
+        Use `force` to ensure entries are appended (deletes duplicates).
+        """
         for block in block:
-            self.append(block)
+            self.append(block, force=force)
 
     def index(self, block: Block) -> int:
         """Get the look-up index of a Block."""
         return self._blut.index(block)
 
     def insert(self, index: int, block: Block):
+        """Insert the Block at the index, causing a right-shift."""
         raise NotImplementedError
 
     def pop(self, pos=-1):
+        """Return and delete the Block at that index from the Palette."""
         raise NotImplementedError
 
     def remove(self, block: Block):
+        """Delete the Block from the Palette."""
         raise NotImplementedError
 
     def reverse(self):
+        """Reverse the order of the Palette."""
         raise NotImplementedError
 
-    def sort(self):
+    def sort(self, *, key: Callable = None, reverse: bool = False):
+        """Sort the Palette."""
+        raise NotImplementedError
+
+    def strip(self):
+        """Remove all empty entries in the Palette."""
         raise NotImplementedError
 
     # ====
@@ -255,9 +278,12 @@ class Palette:
 
 
 class Shape:
+    """Represents a collection spacial points assigned a value."""
+
     def __init__(
         self, size: Vec3iLike = (1, 1, 1), palette: Palette = Palette()
     ) -> None:
+        """Instantiate an empty shape using the necessary values."""
         self._matrix: NDArray = np.zeros(size, dtype=int)
         self._palette: Palette = palette
 
@@ -266,16 +292,15 @@ class Shape:
 
         Flips first, rotates second (16 is a full clockwise rotation).
         """
+        raise NotImplementedError
 
     def put_block(self, block: Block, position: Vec3iLike, *args, **kwargs):
+        """Place a Block into the Shape, and update its Palette if necessary."""
         raise NotImplementedError
 
     def get_block(self, position: Vec3iLike, *args, **kwargs):
+        """Query the Block at that relative position in the shape."""
         if type(position) is int:
             position = [position, args[0], args[1]]
 
         return self._palette.self._matrix[*position]
-
-    def to_model():
-        """Return a GDPC-style Model of the shape."""
-        raise NotImplementedError

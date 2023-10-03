@@ -11,6 +11,8 @@ testpaths = [
     "tests",
 ]
 
+[tool.black]
+line-length = 80
 
 [tool.mypy]
 mypy_path = "src"
